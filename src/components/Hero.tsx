@@ -8,9 +8,9 @@ const Hero: React.FC = () => {
   //   };
 
   return (
-    <div className="w-full bg-white">
-      <div className="w-full max-w-6xl mx-auto flex box-border mb-24 px-4 sm:px-6 lg:px-8">
-        <div className="w-full max-w-2xl flex items-center flex-col text-center mx-auto">
+    <div className="w-full mt-8  flex flex-col items-center justify-center">
+      <div className="w-full bg-white max-w-4xl mx-auto flex box-border mb-24 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center flex-col text-center mx-auto">
           {/* Rating stars */}
           <div className="flex items-center gap-4 mb-12 mt-16 animate-[fadeIn_0.6s_ease-in] opacity-100">
             <div className="flex">
