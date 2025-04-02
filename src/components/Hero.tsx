@@ -48,7 +48,7 @@ const Hero: React.FC = () => {
 
           {/* CTA Button */}
           <button
-            className="rounded-full bg-yellow-400 hover:opacity-80 text-black font-bold text-xl py-4 px-12 mt-8 transition-all duration-200 animate-[fadeIn_0.6s_ease-in_0.3s]"
+            className="rounded-full bg-yellow-400 hover:opacity-80 text-black font-bold text-xl py-4 px-12 mt-8 transition-all duration-200 animate-[fadeIn_0.6s_ease-in_0.3s] cursor-pointer"
             // onClick={handleStartPage}
           >
             Миний хуудсыг бүтээ
