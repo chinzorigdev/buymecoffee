@@ -8,7 +8,7 @@ export default function Home() {
 
       {/*  Demjleg */}
 
-      <div className=" mx-auto container  bg-white text-center ">
+      <div className=" mx-auto max-w-7xl  bg-white text-center ">
         <h2 className="text-gray-500 text-3xl">Дэмжлэг</h2>
         <h2
           data-v-050291cb=""
