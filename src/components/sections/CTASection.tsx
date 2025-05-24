@@ -11,6 +11,8 @@ interface CTASectionProps {
   description?: string;
   primaryButtonText?: string;
   secondaryButtonText?: string;
+  primaryButtonHref?: string;
+  secondaryButtonHref?: string;
   onPrimaryClick?: () => void;
   onSecondaryClick?: () => void;
   variant?: "default" | "gradient" | "outlined";
@@ -21,6 +23,8 @@ const CTASection: React.FC<CTASectionProps> = ({
   description = "Одоо өөрийн дэмжлэгийн платформыг бүтээж, дэмжигчидтэйгээ холбогдоорой.",
   primaryButtonText = "Бүртгүүлэх",
   secondaryButtonText = "Дэлгэрэнгүй мэдээлэл",
+  primaryButtonHref = "/signup",
+  secondaryButtonHref = "/about",
   onPrimaryClick,
   onSecondaryClick,
   variant = "default",

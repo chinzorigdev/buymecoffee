@@ -46,6 +46,7 @@ export {
   NavigationMenuViewport,
 } from "./navigation-menu";
 export { Separator } from "./separator";
+export { Label } from "./label";
 export { FeatureCard } from "./feature-card";
 export { Heading } from "./heading";
 export { Text } from "./text";
