@@ -73,11 +73,12 @@ export default function SigninPage() {
         email: formData.email,
         password: formData.password,
         redirect: false,
+        callbackUrl: "/complete-your-page",
       });
 
       if (result?.ok) {
         // Redirect to dashboard or home page after successful signin
-        window.location.href = "/";
+        // window.location.href = "/"; // Will be handled by callbackUrl
       } else {
         console.error("Signin failed:", result?.error);
       }
@@ -92,6 +93,14 @@ export default function SigninPage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signIn("google", { callbackUrl: "/complete-your-page" });
+    } catch (error) {
+      console.error("Google Sign-In error:", error);
+    }
   };
 
   return (
@@ -216,7 +225,7 @@ export default function SigninPage() {
             <div className="space-y-3">
               <Button
                 variant="outline"
-                onClick={() => signIn("google", { callbackUrl: "/" })}
+                onClick={handleGoogleSignIn}
                 className="w-full py-3 border-2 hover:bg-gray-50"
               >
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
