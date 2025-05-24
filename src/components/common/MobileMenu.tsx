@@ -1,14 +1,12 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { FiX } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import SearchInput from "./SearchInput";
 import { cn } from "@/lib/utils";

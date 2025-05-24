@@ -26,8 +26,8 @@ const headingVariants = cva("font-bold tracking-tight", {
 });
 
 export interface HeadingProps
-  extends Omit<React.HTMLAttributes<HTMLHeadingElement>, 'color'>,
-    Omit<VariantProps<typeof headingVariants>, 'color'> {
+  extends Omit<React.HTMLAttributes<HTMLHeadingElement>, "color">,
+    Omit<VariantProps<typeof headingVariants>, "color"> {
   as?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   textColor?: "default" | "muted" | "primary" | "accent";
 }
@@ -37,7 +37,9 @@ const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
     const Comp = as;
     return (
       <Comp
-        className={cn(headingVariants({ variant, color: textColor, className }))}
+        className={cn(
+          headingVariants({ variant, color: textColor, className })
+        )}
         ref={ref}
         {...props}
       />
