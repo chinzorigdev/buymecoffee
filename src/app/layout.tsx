@@ -13,8 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Demj.mn - Нэгнээ дэмж",
-  description: "Дэм өргөдөг апп",
+  title: "Надад Кофе Авч Өгөөрэй - Бүтээлчдэд дэмжлэг үзүүлэх платформ",
+  description:
+    "Бүтээлчдэд дэмжлэг үзүүлэх хялбар, найрсаг платформ. Хэдхэн товшилтоор дэмжлэг илэрхийл.",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -23,11 +29,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="mn" className="scroll-smooth">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
-        {/* <h1>Апп фолдер доторх үндсэн LAYOUT</h1> */}
+        {/* Апп фолдер доторх үндсэн LAYOUT */}
         {children}
       </body>
     </html>
