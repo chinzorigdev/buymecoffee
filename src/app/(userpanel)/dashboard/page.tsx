@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,62 +13,52 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Menu,
   Home,
   Users,
-  Coffee,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Activity,
   Heart,
+  TrendingUp,
   MessageCircle,
-  Star,
   Settings,
   LogOut,
   Bell,
+  ArrowDown,
+  Share,
+  PanelsTopLeft,
+  ExternalLink,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
   const [activePage, setActivePage] = useState("dashboard");
 
-  // Sample data for the dashboard
-  const stats = [
-    {
-      title: "Нийт орлого",
-      value: "₮2,847,000",
-      change: "+20.1%",
-      trend: "up",
-      icon: DollarSign,
-      color: "text-green-600",
-    },
-    {
-      title: "Идэвхтэй дэмжигчид",
-      value: "1,245",
-      change: "+15.2%",
-      trend: "up",
-      icon: Users,
-      color: "text-blue-600",
-    },
-    {
-      title: "Кофе авсан",
-      value: "3,892",
-      change: "+8.3%",
-      trend: "up",
-      icon: Coffee,
-      color: "text-yellow-600",
-    },
-    {
-      title: "Үзсэн тоо",
-      value: "28,456",
-      change: "-2.1%",
-      trend: "down",
-      icon: Activity,
-      color: "text-purple-600",
-    },
-  ];
+  // Authentication шалгалт
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Ачааллаж байна...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated" || !session) {
+    window.location.href = "/signin";
+    return null;
+  }
+
+  // Debug: Session мэдээллийг шалгах
+  console.log("Session data:", session);
+  console.log("Username:", session?.user?.username);
 
   const recentSupporters = [
     {
@@ -99,40 +90,14 @@ export default function Dashboard() {
       avatar: "Ц",
     },
   ];
-
-  const activities = [
-    {
-      type: "donation",
-      user: "Батбаяр",
-      action: "танд ₮75,000 илгээсэн",
-      time: "10 минутын өмнө",
-      icon: Heart,
-    },
-    {
-      type: "comment",
-      user: "Оюунчимэг",
-      action: "таны нийтлэлд сэтгэгдэл үлдээсэн",
-      time: "30 минутын өмнө",
-      icon: MessageCircle,
-    },
-    {
-      type: "follow",
-      user: "Гантулга",
-      action: "таныг дагаж эхэлсэн",
-      time: "1 цагийн өмнө",
-      icon: Users,
-    },
-    {
-      type: "goal",
-      user: "Систем",
-      action: "Таны зорилгын 75% биелсэн",
-      time: "2 цагийн өмнө",
-      icon: Star,
-    },
-  ];
-
   const sidebarItems = [
     { id: "dashboard", label: "Удирдлагын самбар", icon: Home },
+    {
+      id: "viewpage",
+      label: "Хуудас харах",
+      icon: PanelsTopLeft,
+      externalIcon: ExternalLink,
+    },
     { id: "supporters", label: "Дэмжигчид", icon: Users },
     { id: "donations", label: "Хандив", icon: Heart },
     { id: "analytics", label: "Шинжилгээ", icon: TrendingUp },
@@ -151,8 +116,7 @@ export default function Dashboard() {
           Coffee Dashboard
         </h2>
         <p className="text-sm text-gray-600">Удирдлагын самбар</p>
-      </div>
-
+      </div>{" "}
       <nav className="flex-1 p-4 space-y-2">
         {sidebarItems.map((item) => (
           <Button
@@ -164,16 +128,27 @@ export default function Dashboard() {
                 : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
             }`}
             onClick={() => {
-              setActivePage(item.id);
-              onItemClick?.(item.id);
+              if (item.id === "viewpage") {
+                // Нэвтэрсэн хэрэглэгчийн хуудсыг шинэ tab-д нээх
+                if (session?.user?.username) {
+                  window.open(`/${session.user.username}`, "_blank");
+                } else {
+                  alert("Хэрэглэгчийн нэр олдсонгүй. Дахин нэвтэрнэ үү.");
+                }
+              } else {
+                setActivePage(item.id);
+                onItemClick?.(item.id);
+              }
             }}
           >
             <item.icon className="w-4 h-4 mr-3" />
             {item.label}
+            {item.externalIcon && (
+              <item.externalIcon className="w-3 h-3 ml-auto" />
+            )}
           </Button>
         ))}
       </nav>
-
       <div className="p-4 border-t">
         <Button
           variant="ghost"
@@ -224,179 +199,105 @@ export default function Dashboard() {
             <p className="text-gray-600">Өнөөдрийн үр дүнгээ харцгаая</p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    {stat.title}
+          <div className="flex justify-center">
+            <div className="w-full max-w-2xl space-y-6">
+              {/* Statistics Cards */}
+              <div className="space-y-4">
+                {/* User Profile Card */}
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      {" "}
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage
+                            src={session?.user?.image || "/user-photo.jpg"}
+                          />{" "}
+                          <AvatarFallback className="bg-yellow-500 text-white text-lg">
+                            {session?.user?.name?.charAt(0)?.toUpperCase() ||
+                              "Х"}
+                          </AvatarFallback>
+                        </Avatar>{" "}
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {session?.user?.name || "Хэрэглэгч"}
+                          </h3>{" "}
+                          <p className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer">
+                            {session?.user?.username
+                              ? `buymecoffee.com/${session.user.username}`
+                              : "Хэрэглэгчийн нэр тодорхойгүй"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
+                        <Share className="ml-2 h-4 w-4" />
+                        Хуваалцах
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-start mt-4 space-x-6">
+                      <h3>Earnings</h3>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" className="text-gray-700">
+                            <div>Нийт</div>
+                            <ArrowDown className="ml-2 h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>Сүүлийн 30 өдөр</DropdownMenuItem>
+                          <DropdownMenuItem> Сүүлийн 90 өдөр</DropdownMenuItem>
+                          <DropdownMenuItem>Нийт</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Supporters */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Heart className="h-5 w-5 text-red-500 mr-2" />
+                    Сүүлийн дэмжигчид
                   </CardTitle>
-                  <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                  <CardDescription>
+                    Танд саяхан дэмжлэг үзүүлсэн хүмүүс
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-900 mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    {stat.trend === "up" ? (
-                      <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
-                    )}
-                    <span
-                      className={
-                        stat.trend === "up" ? "text-green-600" : "text-red-600"
-                      }
-                    >
-                      {stat.change}
-                    </span>
-                    <span className="text-gray-600 ml-1">сүүлийн сараас</span>
-                  </div>
+                <CardContent className="space-y-4">
+                  {recentSupporters.map((supporter, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="bg-yellow-500 text-white">
+                          {supporter.avatar}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium">
+                            {supporter.name}
+                          </h4>
+                          <Badge
+                            variant="secondary"
+                            className="bg-green-100 text-green-800"
+                          >
+                            {supporter.amount}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {supporter.message}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {supporter.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Supporters */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Heart className="h-5 w-5 text-red-500 mr-2" />
-                  Сүүлийн дэмжигчид
-                </CardTitle>
-                <CardDescription>
-                  Танд саяхан дэмжлэг үзүүлсэн хүмүүс
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {recentSupporters.map((supporter, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="bg-yellow-500 text-white">
-                        {supporter.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">
-                          {supporter.name}
-                        </h4>
-                        <Badge
-                          variant="secondary"
-                          className="bg-green-100 text-green-800"
-                        >
-                          {supporter.amount}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {supporter.message}
-                      </p>
-                      <p className="text-xs text-gray-400">{supporter.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Activity Feed */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Activity className="h-5 w-5 text-blue-500 mr-2" />
-                  Сүүлийн үйл ажиллагаа
-                </CardTitle>
-                <CardDescription>
-                  Таны профайл дахь сүүлийн үйлдлүүд
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {activities.map((activity, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="bg-gray-100 p-2 rounded-full">
-                      <activity.icon className="h-4 w-4 text-gray-600" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm">
-                        <span className="font-medium">{activity.user}</span>{" "}
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-gray-400">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Хурдан тоо баримт</CardTitle>
-                <CardDescription>
-                  Өнөөдрийн гүйцэтгэлийн хураангуй
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600 mb-1">
-                      12
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Өнөөдөр авсан кофе
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 mb-1">
-                      ₮150,000
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Өнөөдрийн орлого
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600 mb-1">
-                      89%
-                    </div>
-                    <div className="text-sm text-gray-600">Зорилгын хувь</div>
-                  </div>
-                </div>
-
-                <Separator className="my-6" />
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Сарын зорилго</span>
-                      <span>89%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-yellow-500 h-2 rounded-full"
-                        style={{ width: "89%" }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Дэмжигчдийн зорилго</span>
-                      <span>76%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: "76%" }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            </div>
           </div>
         </div>
       </div>

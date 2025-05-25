@@ -82,11 +82,11 @@ export default function SignupPage() {
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
+        username: username, // Username-г нэмж байна
         redirect: false,
       });
-
       if (result?.ok) {
-        router.push("/");
+        router.push("/complete-your-page");
       } else {
         console.error("Signup failed:", result?.error);
       }
@@ -308,7 +308,7 @@ export default function SignupPage() {
                 onClick={handleGoogleSignIn} // Added onClick handler
               >
                 <Image
-                  src="/google-logo.svg" 
+                  src="/google-logo.svg"
                   alt="Google"
                   width={20}
                   height={20}

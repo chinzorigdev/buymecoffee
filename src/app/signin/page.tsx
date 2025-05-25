@@ -73,12 +73,11 @@ export default function SigninPage() {
         email: formData.email,
         password: formData.password,
         redirect: false,
-        callbackUrl: "/complete-your-page",
+        callbackUrl: "/dashboard",
       });
-
       if (result?.ok) {
-        // Redirect to dashboard or home page after successful signin
-        // window.location.href = "/"; // Will be handled by callbackUrl
+        // Redirect to dashboard after successful signin
+        window.location.href = "/dashboard";
       } else {
         console.error("Signin failed:", result?.error);
       }
@@ -94,10 +93,9 @@ export default function SigninPage() {
       [name]: value,
     }));
   };
-
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/complete-your-page" });
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch (error) {
       console.error("Google Sign-In error:", error);
     }
@@ -247,11 +245,12 @@ export default function SigninPage() {
                   />
                 </svg>
                 Google-ээр нэвтрэх
-              </Button>
-
+              </Button>{" "}
               <Button
                 variant="outline"
-                onClick={() => signIn("facebook", { callbackUrl: "/" })}
+                onClick={() =>
+                  signIn("facebook", { callbackUrl: "/dashboard" })
+                }
                 className="w-full py-3 border-2 hover:bg-gray-50"
               >
                 <svg

@@ -23,6 +23,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        username: { label: "Username", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -30,18 +31,33 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Here you would validate the credentials against your database
-        // For now, we'll just return a mock user
+        // For now, we'll create a consistent mock user based on email
         // In a real app, you'd check against your database
+
+        // Username-г email-аас үүсгэх эсвэл оруулсан утгыг ашиглах
+        const username =
+          credentials.username ||
+          credentials.email
+            .split("@")[0]
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+
+        // Email-аас consistent ID үүсгэх (simple hash)
+        const userId = btoa(credentials.email)
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .substring(0, 16);
+
         return {
-          id: "1",
+          id: userId,
           email: credentials.email,
-          name: "User",
+          name: credentials.username || username,
+          username: username,
         };
       },
     }),
   ],
   pages: {
-    signIn: "/signup",
+    signIn: "/signin",
     error: "/auth/error",
   },
   session: {
@@ -51,14 +67,30 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.username = user.username;
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id as string;
+        session.user.username = token.username as string;
       }
       return session;
+    },
+    async signIn({ user, account, profile }) {
+      // Google эсвэл бусад provider-аас нэвтэрсэн үед username үүсгэх
+      if (account?.provider === "google" && profile?.email && !user.username) {
+        user.username = profile.email
+          .split("@")[0]
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+        // Email-аас consistent ID үүсгэх
+        user.id = btoa(profile.email)
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .substring(0, 16);
+      }
+      return true;
     },
   },
 };
