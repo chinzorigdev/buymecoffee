@@ -22,11 +22,16 @@ export async function PATCH(request: NextRequest) {
         },
         { status: 401 }
       );
-    }
-
-    // Request body авах
+    } // Request body авах
     const body = await request.json();
-    const { userId, name, about, website, profileImage } = body;
+    const {
+      userId,
+      name,
+      about,
+      website,
+      profileImage,
+      needsProfileCompletion,
+    } = body;
 
     // Хэрэглэгч өөрийн мэдээллийг л засах эрхтэй
     if (session.user.id !== userId) {

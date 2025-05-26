@@ -103,7 +103,8 @@ export default function Dashboard() {
           if (response.ok) {
             const data = await response.json();
             setUserData(data.user);
-            console.log("✅ Хэрэглэгчийн мэдээлэл амжилттай авлаа:", data.user);          } else {
+            console.log("✅ Хэрэглэгчийн мэдээлэл амжилттай авлаа:", data.user);
+          } else {
             const errorData = await response.json();
             console.error(
               "❌ Хэрэглэгчийн мэдээлэл авахад алдаа:",
@@ -118,20 +119,22 @@ export default function Dashboard() {
               window.location.href = "/signin";
               return;
             }
-            
+
             // Хэрэв хэрэглэгч олдсонгүй бол session цэвэрлээд signin руу шилжүүлэх
             if (response.status === 404) {
-              console.log(
-                "🔍 Хэрэглэгч олдсонгүй. Session цэвэрлэж байна..."
-              );
+              console.log("🔍 Хэрэглэгч олдсонгүй. Session цэвэрлэж байна...");
               await signOut({ callbackUrl: "/signin" });
               return;
             }
-          }        } catch (error) {
+          }
+        } catch (error) {
           console.error("❌ Хэрэглэгчийн мэдээлэл авахад алдаа:", error);
-          
+
           // Network эсвэл бусад алдааны хувьд session цэвэрлэх
-          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+          if (
+            error instanceof TypeError &&
+            error.message.includes("Failed to fetch")
+          ) {
             console.log("🌐 Сүлжээний алдаа байна");
           } else {
             console.log("🔄 Тодорхойгүй алдаа. Session шалгаж байна...");

@@ -156,6 +156,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.username = user.username;
+        token.isNewUser = user.isNewUser || false;
       }
       return token;
     },
@@ -163,6 +164,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
+        session.user.isNewUser = token.isNewUser as boolean;
       }
       return session;
     },
@@ -175,6 +177,8 @@ export const authOptions: NextAuthOptions = {
           let existingUser = (await User.findOne({
             googleId: user.id,
           })) as IUser | null;
+
+          let isNewUser = false;
 
           if (!existingUser) {
             // Имэйлээр хайх (Google account-г одоо байгаа account-тай холбох)
@@ -197,6 +201,7 @@ export const authOptions: NextAuthOptions = {
             } else {
               // Шинэ Google хэрэглэгч үүсгэх
               console.log("👤 Шинэ Google хэрэглэгч үүсгэж байна");
+              isNewUser = true;
 
               // Username үүсгэх - Сайжруулсан логик
               let username = generateUsernameFromEmail(user.email!);
@@ -212,6 +217,8 @@ export const authOptions: NextAuthOptions = {
                 googleId: user.id,
                 providers: ["google"],
                 isVerified: true, // Google аккаунт автоматаар баталгаажсан
+                // Шинэ хэрэглэгчид complete-your-page руу шилжүүлэхийг тэмдэглэх
+                needsProfileCompletion: true,
               });
 
               await existingUser.save();
@@ -229,6 +236,9 @@ export const authOptions: NextAuthOptions = {
           user.id = existingUser._id.toString();
           user.username = existingUser.username;
           user.name = existingUser.name;
+
+          // Шинэ хэрэглэгч эсэхийг тэмдэглэх
+          user.isNewUser = isNewUser;
 
           return true;
         }
@@ -250,14 +260,30 @@ export const authOptions: NextAuthOptions = {
       // OAuth-аас ирсэн redirect-ийг зохицуулах
       console.log("🔄 Redirect callback:", { url, baseUrl });
 
-      // Google OAuth хэрэглэгчид үргэлж dashboard рүү шилжүүлэх
-      // Google OAuth нь аль хэдийн бүрэн профайлтай хэрэглэгч үүсгэдэг
-      if (url.includes("dashboard")) {
+      // Хэрэв complete-your-page хуудаснаас ирсэн бол, тухайн хуудсанд үлдэх
+      if (url.includes("complete-your-page")) {
+        return `${baseUrl}/complete-your-page`;
+      }
+
+      // Хэрэв signin хуудаснаас ирсэн бол:
+      // - Шинэ Google хэрэглэгчид complete-your-page руу
+      // - Одоо байгаа хэрэглэгчид dashboard руу
+      if (url.includes("signin")) {
+        // URL-д callbackUrl байгаа эсэхийг шалгах
+        const urlObj = new URL(url, baseUrl);
+        const callbackUrl = urlObj.searchParams.get("callbackUrl");
+
+        if (callbackUrl && callbackUrl.includes("complete-your-page")) {
+          return `${baseUrl}/complete-your-page`;
+        }
+
+        // Google OAuth-н хувьд session-аас шинэ хэрэглэгч эсэхийг шалгах
+        // (Энэ нь JWT callback дээр тохируулагдсан байх ёстой)
         return `${baseUrl}/dashboard`;
       }
 
-      // Хэрэв signin хуудаснаас ирсэн бол dashboard рүү шилжүүлэх
-      if (url.includes("signin")) {
+      // Dashboard хандалт - шинэ хэрэглэгчид complete-your-page руу шилжүүлэх
+      if (url.includes("dashboard")) {
         return `${baseUrl}/dashboard`;
       }
 
