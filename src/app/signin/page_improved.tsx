@@ -70,70 +70,6 @@ export default function SigninPage() {
     password: "",
   });
 
-  // Get error from URL params (from failed OAuth or other redirects)
-  useEffect(() => {
-    const errorParam = searchParams.get("error");
-    const messageParam = searchParams.get("message");
-
-    if (errorParam) {
-      switch (errorParam) {
-        case "OAuthAccountNotLinked":
-          setError(
-            "Энэ Google аккаунт өөр имэйл хаягтай холбогдсон байна. Эхлээд имэйл/нууц үгээр нэвтэрч, дараа нь Google аккаунтаа холбоно уу."
-          );
-          break;
-        case "OAuthCallbackError":
-          setError(
-            "Google нэвтрэлтийн алдаа гарлаа. Браузерийн cookie болон JavaScript-г идэвхжүүлээд дахин оролдоно уу."
-          );
-          break;
-        case "OAuthSignin":
-          setError(
-            "Google серверт холбогдохд алдаа гарлаа. Интернет холболтоо шалгаад дахин оролдоно уу."
-          );
-          break;
-        case "OAuthCreateAccount":
-          setError(
-            "Google аккаунт үүсгэхэд алдаа гарлаа. Энэ имэйл хаяг аль хэдийн бүртгэлтэй байна."
-          );
-          break;
-        case "OAuthProfile":
-          setError(
-            "Google профайл мэдээлэл авахад алдаа гарлаа. Google аккаунтаа нээж, аппликейшнд зөвшөөрөл өгсөн эсэхээ шалгана уу."
-          );
-          break;
-        case "EmailNotVerified":
-          setError("Имэйл хаягаа баталгаажуулна уу.");
-          break;
-        case "CredentialsSignin":
-          setError("Имэйл хаяг эсвэл нууц үг буруу байна.");
-          break;
-        case "AccessDenied":
-          setError(
-            "Google нэвтрэлт татгалзагдсан. Google аккаунтаараа дахин нэвтэрч оролдоно уу."
-          );
-          break;
-          break;
-        default:
-          setError("Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.");
-      }
-    }
-
-    if (messageParam) {
-      setSuccess(decodeURIComponent(messageParam));
-    }
-  }, [searchParams]);
-  // Check if user is already authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      const session = await getSession();
-      if (session) {
-        router.push("/dashboard");
-      }
-    };
-    checkAuth();
-  }, [router]);
-
   // Same carousel data as signup page
   const carouselItems = [
     {
@@ -164,6 +100,48 @@ export default function SigninPage() {
         "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
     },
   ];
+
+  // Get error from URL params (from failed OAuth or other redirects)
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    const messageParam = searchParams.get("message");
+
+    if (errorParam) {
+      switch (errorParam) {
+        case "OAuthAccountNotLinked":
+          setError(
+            "Энэ имэйл хаяг өөр нэвтрэх аргаар бүртгэгдсэн байна. Тухайн аргаар нэвтэрнэ үү."
+          );
+          break;
+        case "EmailNotVerified":
+          setError("Имэйл хаягаа баталгаажуулна уу.");
+          break;
+        case "CredentialsSignin":
+          setError("Имэйл хаяг эсвэл нууц үг буруу байна.");
+          break;
+        case "AccessDenied":
+          setError("Нэвтрэх эрх хүрэлцэхгүй байна.");
+          break;
+        default:
+          setError("Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.");
+      }
+    }
+
+    if (messageParam) {
+      setSuccess(decodeURIComponent(messageParam));
+    }
+  }, [searchParams]);
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const session = await getSession();
+      if (session) {
+        router.push("/dashboard");
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   // Auto-play carousel
   useEffect(() => {
@@ -249,63 +227,19 @@ export default function SigninPage() {
       setError("");
     }
   };
+
   const handleGoogleSignIn = async () => {
     setError("");
-    setSuccess("");
     setIsGoogleLoading(true);
 
     try {
-      console.log("🚀 Google OAuth эхэлж байна...");
-      // Show immediate feedback to user
-      setSuccess("Google рүү шилжүүлж байна...");
-
-      // Set flag for Google OAuth signup detection
-      localStorage.setItem("google-oauth-signup", "true");
-
-      const result = await signIn("google", {
+      await signIn("google", {
         callbackUrl: "/dashboard",
-        redirect: false, // Handle redirect manually for better UX
+        redirect: true,
       });
-
-      if (result?.ok) {
-        setSuccess("Амжилттай нэвтэрлээ! Dashboard руу шилжүүлж байна...");
-        // Small delay for user feedback, then redirect
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 1500);
-      } else if (result?.error) {
-        console.error("Google Sign-In алдаа:", result.error);
-
-        switch (result.error) {
-          case "OAuthAccountNotLinked":
-            setError(
-              "Энэ Google аккаунт өөр имэйлтэй холбогдсон байна. Имэйл/нууц үгээр нэвтэрч Google-г холбоно уу."
-            );
-            break;
-          case "OAuthCallbackError":
-            setError(
-              "Google нэвтрэлтийн алдаа. Браузерийн cookie-г идэвхжүүлээд дахин оролдоно уу."
-            );
-            break;
-          case "OAuthSignin":
-            setError(
-              "Google серверт холбогдохд алдаа гарлаа. Түр хүлээгээд дахин оролдоно уу."
-            );
-            break;
-          default:
-            setError("Google нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.");
-        }
-        setIsGoogleLoading(false);
-      } else {
-        // This might happen due to popup blocking or user cancellation
-        setError("Google нэвтрэлт цуцлагдсан эсвэл popup хаагдсан байна.");
-        setIsGoogleLoading(false);
-      }
     } catch (error) {
-      console.error("Google Sign-In critical error:", error);
-      setError(
-        "Сүлжээний алдаа эсвэл popup блоклогдсон байна. Popup-г зөвшөөрч дахин оролдоно уу."
-      );
+      console.error("Google Sign-In error:", error);
+      setError("Google нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.");
       setIsGoogleLoading(false);
     }
   };
@@ -325,45 +259,6 @@ export default function SigninPage() {
       setIsFacebookLoading(false);
     }
   };
-
-  // Handle retry scenarios
-  useEffect(() => {
-    const retryParam = searchParams.get("retry");
-    if (retryParam === "google") {
-      // Automatically retry Google OAuth after being redirected from error page
-      setSuccess("Google OAuth дахин оролдож байна...");
-      setTimeout(() => {
-        handleGoogleSignIn();
-      }, 1000);
-    }
-  }, [searchParams]);
-
-  // Full-screen loading overlay component
-  const LoadingOverlay = ({ message }: { message: string }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-sm mx-4 text-center">
-        <div className="mb-4">
-          <Loader2 className="w-12 h-12 mx-auto animate-spin text-yellow-400" />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Түр хүлээнэ үү
-        </h3>
-        <p className="text-gray-600">{message}</p>{" "}
-      </div>
-    </div>
-  );
-
-  // Handle retry scenarios after all functions are defined
-  useEffect(() => {
-    const retryParam = searchParams.get("retry");
-    if (retryParam === "google") {
-      // Automatically retry Google OAuth after being redirected from error page
-      setSuccess("Google OAuth дахин оролдож байна...");
-      setTimeout(() => {
-        handleGoogleSignIn();
-      }, 1000);
-    }
-  }, [searchParams, handleGoogleSignIn]);
 
   return (
     <div className="min-h-screen flex">
@@ -472,6 +367,7 @@ export default function SigninPage() {
             </div>
             <span className="text-2xl font-bold">БүйМиКофи</span>
           </div>
+
           <div className="space-y-6">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold text-gray-900">
@@ -660,17 +556,9 @@ export default function SigninPage() {
                 </Link>
               </p>
             </div>
-          </div>{" "}
+          </div>
         </div>
       </div>
-
-      {/* Full-screen loading overlay */}
-      {isGoogleLoading && (
-        <LoadingOverlay message="Google нэвтрэлт боловсруулж байна..." />
-      )}
-      {isFacebookLoading && (
-        <LoadingOverlay message="Facebook нэвтрэлт боловсруулж байна..." />
-      )}
     </div>
   );
 }

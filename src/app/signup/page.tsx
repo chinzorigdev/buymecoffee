@@ -24,6 +24,91 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState(1); // 1: username, 2: signup details
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const validationTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Username validation болон availability шалгах
+  const validateUsername = async (value: string) => {
+    const trimmedValue = value.trim().toLowerCase();
+    setUsernameError("");
+
+    // Хоосон утга
+    if (!trimmedValue) {
+      return;
+    }
+
+    // Урт шалгах
+    if (trimmedValue.length < 3) {
+      setUsernameError("3-аас дээш тэмдэгт байх ёстой");
+      return;
+    }
+
+    if (trimmedValue.length > 30) {
+      setUsernameError("30-аас бага тэмдэгт байх ёстой");
+      return;
+    }
+
+    // Format шалгах
+    const usernameRegex = /^[a-z0-9_.-]+$/;
+    if (!usernameRegex.test(trimmedValue)) {
+      setUsernameError("Зөвхөн жижиг үсэг, тоо, доогуур зураас, цэг, зураас ашиглана уу");
+      return;
+    }
+
+    // Эхлэл/төгсгөл шалгах
+    if (trimmedValue.startsWith('.') || trimmedValue.startsWith('-') || 
+        trimmedValue.endsWith('.') || trimmedValue.endsWith('-')) {
+      setUsernameError("Цэг эсвэл зураасаар эхлэх/төгсөх боломжгүй");
+      return;
+    }
+
+    // Дараалсан тусгай тэмдэгт шалгах
+    if (trimmedValue.includes('..') || trimmedValue.includes('--') || 
+        trimmedValue.includes('.-') || trimmedValue.includes('-.')) {
+      setUsernameError("Дараалсан тусгай тэмдэгт ашиглах боломжгүй");
+      return;
+    }
+
+    // Reserved нэрс шалгах
+    const reservedNames = [
+      'admin', 'administrator', 'root', 'support', 'help', 'api', 'www',
+      'mail', 'email', 'test', 'demo', 'null', 'undefined', 'system',
+      'buymecoffee', 'buymeacoffee', 'coffee', 'payment', 'donate'
+    ];
+    
+    if (reservedNames.includes(trimmedValue)) {
+      setUsernameError("Энэ нэрийг ашиглах боломжгүй");
+      return;
+    }
+
+    // Username давхцаж байгаа эсэхийг шалгах
+    setIsCheckingUsername(true);
+    try {
+      const response = await fetch(`/api/user/check-username?username=${encodeURIComponent(trimmedValue)}`);
+      const data = await response.json();
+      
+      if (!data.available) {
+        setUsernameError("Энэ нэр аль хэдийн ашиглагдаж байна");
+      }
+    } catch (error) {
+      console.error("Username шалгахад алдаа:", error);
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };  // Username өөрчлөгдөх үед validation хийх
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUsername(value);
+    
+    // Debounce validation (500ms хүлээгээд шалгах)
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
+    validationTimeoutRef.current = setTimeout(() => {
+      validateUsername(value);
+    }, 500);
+  };
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -79,19 +164,28 @@ export default function SignupPage() {
     e.preventDefault();
 
     try {
+      console.log("📝 Бүртгэл эхэллээ:", { email: formData.email, username });
+
+      // signIn функцэд isSignup: true дамжуулж, бүртгэл хийхийг зааж өгнө
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
-        username: username, // Username-г нэмж байна
+        username: username,
+        isSignup: "true", // Энэ нь бүртгэл гэдгийг зааж өгнө
         redirect: false,
       });
+
       if (result?.ok) {
+        console.log("✅ Бүртгэл амжилттай!");
         router.push("/complete-your-page");
       } else {
-        console.error("Signup failed:", result?.error);
+        console.error("❌ Бүртгэл амжилтгүй:", result?.error);
+        // TODO: Алдааны мэдээллийг хэрэглэгчид харуулах
+        alert("Бүртгэл амжилтгүй: " + (result?.error || "Тодорхойгүй алдаа"));
       }
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("💥 Бүртгэлийн алдаа:", error);
+      alert("Бүртгэлийн алдаа гарлаа. Дахин оролдоно уу.");
     }
   };
 
@@ -102,10 +196,11 @@ export default function SignupPage() {
       [name]: value,
     }));
   };
-
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl: "/complete-your-page" });
+      // Хэрэв signup хуудаснаас Google-р нэвтэрч байгаа бол dashboard рүү шилжүүлэх
+      // Учир нь Google OAuth нь аль хэдийн бүрэн профайлтай хэрэглэгч үүсгэдэг
+      await signIn("google", { callbackUrl: "/dashboard" });
     } catch (error) {
       console.error("Google Sign-In error:", error);
     }
@@ -217,18 +312,41 @@ export default function SignupPage() {
               <Coffee className="h-8 w-8 text-black" />
             </div>
             <span className="text-2xl font-bold">БүйМиКофи</span>
-          </div>
-
-          {step === 1 ? (
-            /* Step 1: Choose Username */
+          </div>          {step === 1 ? (
+            /* Step 1: Choose Signup Method */
             <div className="space-y-6">
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Таны хуудасны нэрийг сонгоно уу
+                  Бүртгүүлэх
                 </h1>
                 <p className="text-gray-600">
-                  Энэ нэр таны профайлын URL-д ашиглагдана
+                  Өөрийн хуудасны нэрээ сонгоод, бүртгүүлэх аргаа сонгоно уу
                 </p>
+              </div>
+
+              {/* Google Sign-In Button - Available in Step 1 */}
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center space-x-2 py-3 text-lg"
+                onClick={handleGoogleSignIn}
+              >
+                <Image
+                  src="/google-logo.svg"
+                  alt="Google"
+                  width={20}
+                  height={20}
+                />
+                <span>Google-ээр үргэлжлүүлэх</span>
+              </Button>
+
+              {/* OR Separator */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">эсвэл</span>
+                </div>
               </div>
 
               <form onSubmit={handleUsernameSubmit} className="space-y-6">
@@ -237,25 +355,39 @@ export default function SignupPage() {
                     htmlFor="username"
                     className="text-sm font-medium text-gray-700"
                   >
-                    Хэрэглэгчийн нэр
+                    Хуудасны нэр
                   </Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm">
                       buymeacoffee.mn/
-                    </span>
-                    <Input
+                    </span>                    <Input
                       id="username"
                       type="text"
                       placeholder="yourname"
                       value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="pl-32 text-lg py-3 border-2 border-gray-200 focus:border-yellow-400 focus:ring-yellow-400"
+                      onChange={handleUsernameChange}
+                      className={`pl-32 text-lg py-3 border-2 ${
+                        usernameError 
+                          ? 'border-red-300 focus:border-red-400 focus:ring-red-400' 
+                          : 'border-gray-200 focus:border-yellow-400 focus:ring-yellow-400'
+                      }`}
                       required
                     />
+                    {isCheckingUsername && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Зөвхөн үсэг, тоо болон доогуур зураас ашиглаж болно
-                  </p>
+                  {usernameError ? (
+                    <p className="text-xs text-red-500">
+                      {usernameError}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Зөвхөн жижиг үсэг, тоо, доогуур зураас, цэг, зураас ашиглана уу
+                    </p>
+                  )}
                 </div>
 
                 <Button
@@ -263,7 +395,7 @@ export default function SignupPage() {
                   className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-medium py-3 text-lg"
                   disabled={!username.trim()}
                 >
-                  Үргэлжлүүлэх
+                  Имэйл/нууц үгээр үргэлжлүүлэх
                 </Button>
               </form>
 
@@ -279,8 +411,7 @@ export default function SignupPage() {
                 </p>
               </div>
             </div>
-          ) : (
-            /* Step 2: Complete Signup */
+          ) : (            /* Step 2: Complete Email/Password Signup */
             <div className="space-y-6">
               <div className="space-y-2">
                 <button
@@ -291,7 +422,7 @@ export default function SignupPage() {
                   Буцах
                 </button>
                 <h1 className="text-3xl font-bold text-gray-900">
-                  Бүртгэлээ дуусгаарай
+                  Имэйл болон нууц үг оруулна уу
                 </h1>
                 <p className="text-gray-600">
                   Таны хуудас: buymeacoffee.mn/
@@ -301,32 +432,7 @@ export default function SignupPage() {
                 </p>
               </div>
 
-              {/* Google Sign-In Button */}
-              <Button
-                variant="outline"
-                className="w-full flex items-center justify-center space-x-2 py-3 text-lg"
-                onClick={handleGoogleSignIn} // Added onClick handler
-              >
-                <Image
-                  src="/google-logo.svg"
-                  alt="Google"
-                  width={20}
-                  height={20}
-                />
-                <span>Google-ээр нэвтрэх</span>
-              </Button>
-
-              {/* OR Separator */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">эсвэл</span>
-                </div>
-              </div>
-
-              {/* Email/Password Form */}
+              {/* Email/Password Form Only - No Google OAuth in Step 2 */}
               <form onSubmit={handleSignupSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label

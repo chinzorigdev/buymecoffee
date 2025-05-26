@@ -18,11 +18,30 @@ export default function CompleteYourPage() {
   const [about, setAbout] = useState("");
   const [website, setWebsite] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleUser, setIsGoogleUser] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       setName(session.user.name || "");
       setProfileImageUrl(session.user.image || null);
+
+      // Check if this is a Google OAuth user
+      const isFromGoogle =
+        session.user.image?.includes("googleusercontent.com") ||
+        localStorage.getItem("google-oauth-signup") === "true";
+
+      setIsGoogleUser(isFromGoogle);
+
+      if (isFromGoogle) {
+        setWelcomeMessage(
+          "Google аккаунтаар амжилттай нэвтэрлээ! Профайлаа дуусгая."
+        );
+        localStorage.removeItem("google-oauth-signup"); // Clean up
+      } else {
+        setWelcomeMessage("Бүртгэл амжилттай! Профайлаа дуусгая.");
+      }
     } else if (status === "unauthenticated") {
       router.push("/signin");
     }
@@ -31,13 +50,53 @@ export default function CompleteYourPage() {
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/" });
   };
+  // Enhanced save handler with better feedback
   const handleSaveAndContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form data:", { name, about, website, profileImageUrl });
+    setIsLoading(true);
 
-    // Create user profile link using the name
-    const userName = name.toLowerCase().replace(/\s+/g, "");
-    router.push(`/${userName}?new=1`);
+    if (!session?.user?.id) {
+      console.error("User ID олдсонгүй");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      console.log("💾 Профайл мэдээлэл хадгалж байна...");
+
+      // API дуудаж профайл мэдээлэл шинэчлэх
+      const response = await fetch("/api/user/update-profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: session.user.id,
+          name: name.trim(),
+          about: about.trim(),
+          website: website.trim(),
+          profileImage: profileImageUrl,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("✅ Профайл амжилттай шинэчлэгдлээ:", data);
+
+        // User profile хуудас руу шилжих
+        const userName = data.user.username;
+        router.push(`/${userName}?new=1`);
+      } else {
+        const error = await response.json();
+        console.error("❌ Профайл шинэчлэхэд алдаа:", error);
+        alert("Профайл хадгалахад алдаа гарлаа. Дахин оролдоно уу.");
+      }
+    } catch (error) {
+      console.error("❌ Профайл хадгалах алдаа:", error);
+      alert("Сүлжээний алдаа гарлаа. Дахин оролдоно уу.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,11 +147,34 @@ export default function CompleteYourPage() {
 
       <div className="flex flex-col justify-between min-h-[calc(100vh-100px)]">
         <div className="w-full max-w-[700px] mx-auto px-4 md:px-0">
+          {" "}
           {/* Title */}
-          <div className="text-center font-medium text-2xl md:text-3xl mb-6 md:mb-10 mt-6 md:mt-0">
+          <div className="text-center font-medium text-2xl md:text-3xl mb-4 md:mb-6 mt-6 md:mt-0">
             Хуудсаа бөглөх
           </div>
-
+          {/* Welcome Message for Google Users */}
+          {welcomeMessage && (
+            <div
+              className={`text-center mb-6 p-4 rounded-lg ${
+                isGoogleUser
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-blue-50 border border-blue-200"
+              }`}
+            >
+              <p
+                className={`text-sm md:text-base ${
+                  isGoogleUser ? "text-green-800" : "text-blue-800"
+                }`}
+              >
+                {welcomeMessage}
+              </p>
+              {isGoogleUser && (
+                <p className="text-xs text-green-600 mt-1">
+                  Таны Google профайлын мэдээлэл автоматаар орж ирлээ
+                </p>
+              )}
+            </div>
+          )}
           {/* Form Content */}
           <div className="px-4 md:px-0">
             <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-6 md:gap-0">
@@ -201,12 +283,20 @@ export default function CompleteYourPage() {
         <div className="mt-8 md:mt-0">
           {/* Action Button */}
           <div className="flex justify-end items-center py-4 px-4 md:py-6 md:px-16">
+            {" "}
             <Button
               onClick={handleSaveAndContinue}
-              className="bg-yellow-400 hover:bg-yellow-500 text-black font-medium h-12 px-8 md:h-14 md:px-12 text-sm md:text-base rounded-full w-full md:w-auto"
-              disabled={!name.trim()}
+              className="bg-yellow-400 hover:bg-yellow-500 text-black font-medium h-12 px-8 md:h-14 md:px-12 text-sm md:text-base rounded-full w-full md:w-auto disabled:opacity-50"
+              disabled={!name.trim() || isLoading}
             >
-              Дараах
+              {isLoading ? (
+                <>
+                  <Coffee className="w-4 h-4 mr-2 animate-spin" />
+                  Хадгалаж байна...
+                </>
+              ) : (
+                "Дараах"
+              )}
             </Button>
           </div>
         </div>

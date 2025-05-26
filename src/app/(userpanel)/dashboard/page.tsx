@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,11 +23,12 @@ import {
   MessageCircle,
   Settings,
   LogOut,
-  Bell,
   ArrowDown,
   Share,
   PanelsTopLeft,
   ExternalLink,
+  Coffee,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,10 +37,125 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Хэрэглэгчийн мэдээллийн төрөл
+interface UserData {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  about?: string;
+  website?: string;
+  profileImage?: string;
+  coffeePrice: number;
+  totalCoffees: number;
+  totalEarnings: number;
+}
+
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [activePage, setActivePage] = useState("dashboard");
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Dropdown toggle function
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Profile menu handlers
+  const handleDashboard = () => {
+    setIsDropdownOpen(false);
+    // Already on dashboard, just scroll to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleLogout = async () => {
+    setIsDropdownOpen(false);
+    await signOut({ callbackUrl: "/" });
+  };
+  // MongoDB-оос хэрэглэгчийн мэдээлэл авах
+  useEffect(() => {
+    async function fetchUserData() {
+      if (status === "authenticated" && session?.user?.id) {
+        try {
+          console.log("📊 Хэрэглэгчийн мэдээлэл татаж байна...");
+
+          const response = await fetch("/api/user/update-profile");
+          if (response.ok) {
+            const data = await response.json();
+            setUserData(data.user);
+            console.log("✅ Хэрэглэгчийн мэдээлэл амжилттай авлаа:", data.user);          } else {
+            const errorData = await response.json();
+            console.error(
+              "❌ Хэрэглэгчийн мэдээлэл авахад алдаа:",
+              errorData.message
+            );
+
+            // Хэрэв authentication алдаа бол signin хуудас руу шилжүүлэх
+            if (response.status === 401) {
+              console.log(
+                "🔐 Session дууссан байна, signin хуудас руу шилжүүлж байна..."
+              );
+              window.location.href = "/signin";
+              return;
+            }
+            
+            // Хэрэв хэрэглэгч олдсонгүй бол session цэвэрлээд signin руу шилжүүлэх
+            if (response.status === 404) {
+              console.log(
+                "🔍 Хэрэглэгч олдсонгүй. Session цэвэрлэж байна..."
+              );
+              await signOut({ callbackUrl: "/signin" });
+              return;
+            }
+          }        } catch (error) {
+          console.error("❌ Хэрэглэгчийн мэдээлэл авахад алдаа:", error);
+          
+          // Network эсвэл бусад алдааны хувьд session цэвэрлэх
+          if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+            console.log("🌐 Сүлжээний алдаа байна");
+          } else {
+            console.log("🔄 Тодорхойгүй алдаа. Session шалгаж байна...");
+            await signOut({ callbackUrl: "/signin" });
+            return;
+          }
+        } finally {
+          setIsLoading(false);
+        }
+      } else if (status === "unauthenticated") {
+        // Хэрэв session байхгүй бол loading-г зогсоож signin руу шилжүүлэх
+        setIsLoading(false);
+        console.log(
+          "❌ Нэвтрээгүй хэрэглэгч, signin хуудас руу шилжүүлж байна..."
+        );
+        window.location.href = "/signin";
+      } else if (status === "loading") {
+        // Session loading байх үед хүлээх
+        console.log("⏳ Session ачааллаж байна...");
+      }
+    }
+
+    fetchUserData();
+  }, [session, status]);
   // Authentication шалгалт
   if (status === "loading") {
     return (
@@ -51,9 +168,19 @@ export default function Dashboard() {
     );
   }
 
-  if (status === "unauthenticated" || !session) {
-    window.location.href = "/signin";
-    return null;
+  if (status === "unauthenticated" || !session?.user) {
+    // Client талд redirect хийх нь илүү тогтвортой
+    if (typeof window !== "undefined") {
+      window.location.href = "/signin";
+    }
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Нэвтрэх хуудас руу шилжүүлж байна...</p>
+        </div>
+      </div>
+    );
   }
 
   // Debug: Session мэдээллийг шалгах
@@ -163,6 +290,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {" "}
       {/* Mobile Header */}
       <div className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
         <Sheet>
@@ -178,11 +306,52 @@ export default function Dashboard() {
 
         <h1 className="text-lg font-semibold">Dashboard</h1>
 
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
-      </div>
+        {/* Mobile Profile Menu */}
+        <div className="relative" ref={dropdownRef}>
+          <Button
+            variant="outline"
+            className="relative cursor-pointer flex justify-center items-center pl-2 pr-1 border border-gray-200 hover:bg-gray-50 rounded-full h-10"
+            onClick={toggleDropdown}
+          >
+            <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+              {session?.user?.image ? (
+                <Image
+                  src={session.user.image}
+                  alt={userData?.username || session?.user?.username || "User"}
+                  width={28}
+                  height={28}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  draggable="false"
+                />
+              ) : (
+                <Coffee className="w-4 h-4 text-gray-400" />
+              )}
+            </div>
+          </Button>
 
+          {/* Mobile Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+              <button
+                onClick={handleDashboard}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <User className="mr-3 w-4 h-4" />
+                Dashboard
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <LogOut className="mr-3 w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="flex">
         {/* Desktop Sidebar */}
         <div className="hidden lg:block w-80 bg-white border-r border-gray-200 min-h-screen">
@@ -191,6 +360,58 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <div className="flex-1 p-4 lg:p-8">
+          {/* Desktop Header with Profile Menu */}
+          <div className="hidden lg:flex justify-end mb-4">
+            {/* Profile Menu */}
+            <div className="relative" ref={dropdownRef}>
+              <Button
+                variant="outline"
+                className="relative cursor-pointer flex justify-center items-center pl-2 pr-1 border border-gray-200 hover:bg-gray-50 rounded-full h-10"
+                onClick={toggleDropdown}
+              >
+                <Menu className="mr-2 w-5 h-5 text-gray-600" />
+                <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  {session?.user?.image ? (
+                    <Image
+                      src={session.user.image}
+                      alt={
+                        userData?.username || session?.user?.username || "User"
+                      }
+                      width={28}
+                      height={28}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                      draggable="false"
+                    />
+                  ) : (
+                    <Coffee className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
+              </Button>
+
+              {/* Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+                  <button
+                    onClick={handleDashboard}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <User className="mr-3 w-4 h-4" />
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    <LogOut className="mr-3 w-4 h-4" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -209,22 +430,32 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between">
                       {" "}
                       <div className="flex items-center space-x-4">
+                        {" "}
                         <Avatar className="h-12 w-12">
                           <AvatarImage
-                            src={session?.user?.image || "/user-photo.jpg"}
+                            src={
+                              userData?.profileImage ||
+                              session?.user?.image ||
+                              "/user-photo.jpg"
+                            }
                           />{" "}
                           <AvatarFallback className="bg-yellow-500 text-white text-lg">
-                            {session?.user?.name?.charAt(0)?.toUpperCase() ||
-                              "Х"}
+                            {(userData?.name || session?.user?.name)
+                              ?.charAt(0)
+                              ?.toUpperCase() || "Х"}
                           </AvatarFallback>
                         </Avatar>{" "}
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {session?.user?.name || "Хэрэглэгч"}
+                            {userData?.name ||
+                              session?.user?.name ||
+                              "Хэрэглэгч"}
                           </h3>{" "}
                           <p className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer">
-                            {session?.user?.username
-                              ? `buymecoffee.com/${session.user.username}`
+                            {userData?.username || session?.user?.username
+                              ? `buymecoffee.com/${
+                                  userData?.username || session?.user?.username
+                                }`
                               : "Хэрэглэгчийн нэр тодорхойгүй"}
                           </p>
                         </div>
@@ -248,10 +479,77 @@ export default function Dashboard() {
                           <DropdownMenuItem> Сүүлийн 90 өдөр</DropdownMenuItem>
                           <DropdownMenuItem>Нийт</DropdownMenuItem>
                         </DropdownMenuContent>
-                      </DropdownMenu>
+                      </DropdownMenu>{" "}
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Statistics Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Total Coffees */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Нийт кофе
+                      </CardTitle>
+                      <Coffee className="h-4 w-4 text-yellow-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {isLoading ? "..." : userData?.totalCoffees || 0}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +2 энэ сарын
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Total Earnings */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Нийт орлого
+                      </CardTitle>
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {isLoading
+                          ? "..."
+                          : `₮${
+                              userData?.totalEarnings?.toLocaleString() || 0
+                            }`}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        +₮{userData?.coffeePrice || 5000} сүүлийн кофе
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Coffee Price */}
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Кофе үнэ
+                      </CardTitle>
+                      <Badge variant="outline" className="text-yellow-600">
+                        Идэвхтэй
+                      </Badge>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {isLoading
+                          ? "..."
+                          : `₮${
+                              userData?.coffeePrice?.toLocaleString() || 5000
+                            }`}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Кофе тутамд
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
 
               {/* Recent Supporters */}
